@@ -1,7 +1,7 @@
-from PySide6.QtWidgets import QMainWindow, QApplication, QComboBox
+from PySide6.QtWidgets import QMainWindow, QApplication, QComboBox, QFrame
 from PySide6.QtCore import Slot
 from Ui.Mastermind_ui import Ui_MainWindow
-from game import generate_code, check_code, CODE_LENGTH
+from game import generate_code, check_code, CODE_LENGTH, TRIES
 
 class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self, parent=None) -> None:
@@ -9,18 +9,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.setupUi(self)
 
         # Initialize game state
-        self._tries_left = 10
+        self._tries_left = TRIES
         self._code = []
         self._current_guess: list[str] = [""] * CODE_LENGTH
 
 
         # Connect UI elements
         self.GameButtom.clicked.connect(self.handle_button_click)
-        self.Guess1.currentIndexChanged.connect(lambda index: self.update_guess(0, index, self.Guess1))
-        self.Guess2.currentIndexChanged.connect(lambda index: self.update_guess(1, index, self.Guess2))
-        self.Guess3.currentIndexChanged.connect(lambda index: self.update_guess(2, index, self.Guess3))
-        self.Guess4.currentIndexChanged.connect(lambda index: self.update_guess(3, index, self.Guess4))
-
+        for i, guess in enumerate([self.Guess1, self.Guess2, self.Guess3, self.Guess4]):
+            guess.currentIndexChanged.connect(lambda index, i=i, guess=guess: self.update_guess(i, index, guess))
+            
     def reset_game(self):
         """Reset the game to its initial state."""
         self._tries_left = 10
@@ -35,7 +33,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.Tries.setText("Clique em Start para começar!")
         self.set_guess_inputs_enabled(False)
         for i in range(CODE_LENGTH):
+            self.find_guesses(i).setCurrentIndex(0)
             self.find_result_label(i).setStyleSheet("background-color: black; border-radius:20px;")
+            self.update_guess(
+                i,
+                0,
+                self.find_guesses(i)
+            )
 
     def handle_button_click(self):
         """Handle the main button click for starting or guessing."""
@@ -99,13 +103,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def set_guess_inputs_enabled(self, enabled: bool):
         """Enable or disable the guess input combo boxes."""
-        for combo_box in [self.Guess1, self.Guess2, self.Guess3, self.Guess4]:
-            combo_box.setEnabled(enabled)
+        for i in range(4):
+            self.find_guesses(i).setEnabled(enabled)
 
-    def find_result_label(self, index: int):
+    def find_result_label(self, index: int) -> QFrame:
         """Find the result label widget based on the index."""
         return [self.Result1, self.Result2, self.Result3, self.Result4][index]
 
+    def find_guesses(self, index: int) -> QComboBox:
+        """Find the result label widget based on the index."""
+        return [self.Guess1, self.Guess2, self.Guess3, self.Guess4][index]
+    
     def set_final_screen(self, win: bool):
         """Set the final game state on the UI."""
         self.GameButtom.setText("Recomeçar")
