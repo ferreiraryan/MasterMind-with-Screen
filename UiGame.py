@@ -1,190 +1,121 @@
 from PySide6.QtWidgets import QMainWindow, QApplication, QComboBox
-from Ui.Mastermind_ui import Ui_MainWindow
 from PySide6.QtCore import Slot
-from game import generate_code, TRIES, check_code, CODE_LENGTH
+from Ui.Mastermind_ui import Ui_MainWindow
+from game import generate_code, check_code, CODE_LENGTH
 
-class mainWindow(QMainWindow, Ui_MainWindow):
+class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.setupUi(self)
-        
-        self._triesLeft = 10
+
+        # Initialize game state
+        self._tries_left = 10
         self._code = []
-        self._color1 = None
-        self._color2 = None
-        self._color3 = None
-        self._color4 = None
-    
-        
-        self.GameButtom.clicked.connect(self.ButtomClick)
-        
-        
-        self.Guess1.currentIndexChanged.connect(
-            lambda a:self.changeCmbColor(a,self.Guess1)
-            )
-        self.Guess2.currentIndexChanged.connect(
-            lambda a:self.changeCmbColor(a,self.Guess2)
-            )
-        self.Guess3.currentIndexChanged.connect(
-            lambda a:self.changeCmbColor(a,self.Guess3)
-            )
-        self.Guess4.currentIndexChanged.connect(
-            lambda a:self.changeCmbColor(a,self.Guess4)
-            )
-        
-        
-    def restarGame(self):
-        self._triesLeft = 10
+        self._current_guess: list[str] = [""] * CODE_LENGTH
+
+
+        # Connect UI elements
+        self.GameButtom.clicked.connect(self.handle_button_click)
+        self.Guess1.currentIndexChanged.connect(lambda index: self.update_guess(0, index, self.Guess1))
+        self.Guess2.currentIndexChanged.connect(lambda index: self.update_guess(1, index, self.Guess2))
+        self.Guess3.currentIndexChanged.connect(lambda index: self.update_guess(2, index, self.Guess3))
+        self.Guess4.currentIndexChanged.connect(lambda index: self.update_guess(3, index, self.Guess4))
+
+    def reset_game(self):
+        """Reset the game to its initial state."""
+        self._tries_left = 10
+        self._code = generate_code()
+        self._current_guess = [""] * CODE_LENGTH  # Inicialização como lista de strings vazias
+        self.update_ui_for_reset()
+        self.GameText.setText("Bem-vindo ao Mastermind! Clique em Start para começar.")
+
+    def update_ui_for_reset(self):
+        """Reset UI components to their initial states."""
         self.GameButtom.setText("Start")
         self.Tries.setText("Clique em Start para começar!")
-        self.GameText.setText(u"Bem-vindo ao mastemind, voc\u00ea tem 10 chances de adivinhar o c\u00f3digo!")
-        self.configGuesses(False)
-        for i in range(4):
-            self.findResult(i).setStyleSheet("background-color: black; border-radius:20px;")
-            
-        
-    def changeTries(self):
-        self.Tries.setText(f"{self._triesLeft} Tentativas Restantes")
-        self._triesLeft -= 1
-        
-    def appendColors(self):
-        colorsList = [self._color1,self._color2,self._color3,self._color4]
-        return colorsList
-    
-        
-    
-    def findResult(self, i):
-        match i:
-            case 0: 
-                return self.Result1
-            case 1: 
-                return self.Result2
-            case 2: 
-                return self.Result3
-            case 3: 
-                return self.Result4
-            case _:
-                return self.Result1
-        
-        
-        
-    def changeresultFrame(self, guess, color_counts):
-        for i in range(4):
-            if guess[i] == self._code[i]:
-                self.findResult(i).setStyleSheet("background-color: green; border-radius:20px;")
+        self.set_guess_inputs_enabled(False)
+        for i in range(CODE_LENGTH):
+            self.find_result_label(i).setStyleSheet("background-color: black; border-radius:20px;")
+
+    def handle_button_click(self):
+        """Handle the main button click for starting or guessing."""
+        if self.GameButtom.text() == "Recomeçar":
+            self.reset_game()
+        elif self.GameButtom.text() == "Start":
+            self._code = generate_code()
+            self.GameButtom.setText("Guess")
+            self.Tries.setText(f"{self._tries_left} Tentativas restantes")
+            self.set_guess_inputs_enabled(True)
+            self.GameText.setText("Escolha as cores e clique em Guess.")
+        else:
+            self.process_guess()
+
+    def process_guess(self):
+        """Process the player's guess and update the UI."""
+        if "" in self._current_guess:  # Verifica strings vazias em vez de None
+            self.GameText.setText("Por favor, selecione todas as cores antes de continuar.")
+            return
+
+        # check_code agora recebe o tipo correto
+        correct_pos, color_counts = check_code(self._current_guess, self._code)
+        self.update_result_frames(correct_pos, color_counts)
+        self._tries_left -= 1
+        self.Tries.setText(f"{self._tries_left} Tentativas restantes")
+
+        if correct_pos == CODE_LENGTH:
+            self.set_final_screen(True)
+        elif self._tries_left == 0:
+            self.set_final_screen(False)
+
+    def update_guess(self, index: int, color_index: int, combo_box: QComboBox):
+        """Update the guess array and the visual style of the combo box."""
+        color_map = {0: "", 1: "R", 2: "W", 3: "B", 4: "Y", 5: "O", 6: "G"}
+        style_map = {
+            0: ("#000", "#FFFFFF"),
+            1: ("#FF0000", "#FFFFFF"),
+            2: ("#FFFFFF", "black"),
+            3: ("#0059FF", "black"),
+            4: ("#FFEA00", "black"),
+            5: ("#FF6200", "black"),
+            6: ("#1EFF00", "black"),
+        }
+
+        if color_index in color_map:
+            self._current_guess[index] = color_map[color_index]
+            background, color = style_map[color_index]
+            combo_box.setStyleSheet(f"background-color: {background}; color: {color};")
+
+    def update_result_frames(self, correct_pos: int, color_counts: dict):
+        """Update the result frames based on the guess outcome."""
+        for i, color in enumerate(self._current_guess):
+            label = self.find_result_label(i)
+            if color == self._code[i]:
+                label.setStyleSheet("background-color: green; border-radius:20px;")
+            elif color_counts.get(color, 0) > 0:
+                label.setStyleSheet("background-color: orange; border-radius:20px;")
+                color_counts[color] -= 1
             else:
-                self.findResult(i).setStyleSheet("background-color: red;  border-radius:20px;")
-                if guess[i] in color_counts and color_counts[guess[i]] > 0:
-                    self.findResult(i).setStyleSheet("background-color: orange; border-radius:20px;")
-                    color_counts[guess[i]] -= 1
+                label.setStyleSheet("background-color: red; border-radius:20px;")
 
+    def set_guess_inputs_enabled(self, enabled: bool):
+        """Enable or disable the guess input combo boxes."""
+        for combo_box in [self.Guess1, self.Guess2, self.Guess3, self.Guess4]:
+            combo_box.setEnabled(enabled)
 
-                        
-                
-    
-    def changeCmbColor(self,Index,Cmb:QComboBox):
-        match Index:
-            case 0:
-                backColor = "#FF0000"
-                color = "#FFFFFF"
-                colorSet = "R"
-            case 1:
-                backColor = "#FFFFFF"
-                color = "black"
-                colorSet = "W"
-            case 2:
-                backColor = "#0059FF"
-                color = "black"
-                colorSet = "B"
-            case 3:
-                backColor = "#FFEA00"
-                color = "black"
-                colorSet = "Y"
-            case 4:
-                backColor = "#FF6200"
-                color = "black"
-                colorSet = "O"
-            case 5:
-                backColor = "#1EFF00"
-                color = "black"
-                colorSet = "G"
-            case _:
-                backColor = "black"
-                color = "#FFFFFF"
-                colorSet = "N"
-                
-        match Cmb.objectName():
-            case "Guess1":
-                self._color1 = colorSet
-            case "Guess2":
-                self._color2 = colorSet
-            case "Guess3":
-                self._color3 = colorSet
-            case "Guess4":
-                self._color4 = colorSet
+    def find_result_label(self, index: int):
+        """Find the result label widget based on the index."""
+        return [self.Result1, self.Result2, self.Result3, self.Result4][index]
 
-        Cmb.setStyleSheet(f"background-color: {backColor}; color: {color};")
-        
-    def setFinalScreen(self,win):
-        self.GameButtom.setText(u"Recomeçar")
-        if win == True:
-            self.Tries.setText(f"Você acertou em {10-self._triesLeft} tentativas!!")
+    def set_final_screen(self, win: bool):
+        """Set the final game state on the UI."""
+        self.GameButtom.setText("Recomeçar")
+        if win:
+            self.Tries.setText(f"Você acertou em {10 - self._tries_left} tentativas!")
         else:
-            self.Tries.setText(f"Você perdeu o jogo!")
-            
-        
-    def ButtomClick(self):
-        match self.GameButtom.text():
-            case "Recomeçar":
-                self.restarGame()
-            case "Start":
-                self._code = generate_code()
-                self.GameText.setText(u"Escolha as cores e aperte o botão Guess.")
-                self.Tries.setText(f"{self._triesLeft} Tentativas Restantes")
-                self.GameButtom.setText(u"Guess")
-                self.configGuesses(True)
-            case _:
-                if self._triesLeft > 0:
-                    guess = self.appendColors()
-                    correct_pos, color_counts = check_code(guess, self._code)
-                    self.changeresultFrame(guess, color_counts)
-                    self.changeTries()
-                    if correct_pos == CODE_LENGTH:
-                        self.setFinalScreen(True)
-                else:
-                        self.setFinalScreen(False)
-        
-        
-    def configGuesses(self, start):
-        self.Guess1.setEnabled(start)
-        self.Guess2.setEnabled(start)
-        self.Guess3.setEnabled(start)
-        self.Guess4.setEnabled(start)
-        if start:
-            self.Guess1.removeItem(0)
-            self.Guess2.removeItem(0)
-            self.Guess3.removeItem(0)
-            self.Guess4.removeItem(0)
-        else:
-            self.Guess1.insertItem(0,u"None")
-            self.Guess2.insertItem(0,u"None")
-            self.Guess3.insertItem(0,u"None")
-            self.Guess4.insertItem(0,u"None")
+            self.Tries.setText(f"Você perdeu! O código era: {' '.join(self._code)}")
 
-            self.Guess1.setCurrentIndex(0)
-            self.Guess2.setCurrentIndex(0)
-            self.Guess3.setCurrentIndex(0)
-            self.Guess4.setCurrentIndex(0)
-            
-            self.changeCmbColor(8,self.Guess1)
-            self.changeCmbColor(8,self.Guess2)
-            self.changeCmbColor(8,self.Guess3)
-            self.changeCmbColor(8,self.Guess4)
-            
-            
-    
-def startwindow():
+if __name__ == "__main__":
     app = QApplication()
-    MainWindow = mainWindow()
-    MainWindow.show()
+    window = MainWindow()
+    window.show()
     app.exec()

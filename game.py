@@ -1,4 +1,5 @@
 import random
+from typing import List, Tuple, Dict
 
 COLORS = ["R", "G", "B", "Y", "W","O"]
 TRIES = 10
@@ -10,64 +11,23 @@ def generate_code():
         color = random.choice(COLORS)
         code.append(color)
         
-    print(code)
     return code
 
-
-
-
-def guess_code():
-    while True:
-        guess = input("Guess: ").upper().split(" ")
-        
-        if len(guess) != 4:
-            print(f"You must guess {CODE_LENGTH} colors.")
-            continue
-        for color in guess:
-            if color not in COLORS:
-                print(f"Invalid color: {color}. Try again")
-                break
-        else:
-            break
-    print(type(guess))
-    return guess
-
-
-
-def check_code(guess, real_code):
-    color_counts = {}
-    corret_pos = 0
-
+def check_code(guess: List[str], real_code: List[str]) -> Tuple[int, Dict[str, int]]:
+    """Check the guessed code against the real code.
     
-    for color in real_code:
-        if color not in color_counts:
-            color_counts[color] = 0
-        color_counts[color] += 1
-        
-    for guess_color, real_color in zip(guess, real_code):
-        if guess_color == real_color:
-            corret_pos += 1
-            color_counts[guess_color] -=1
-        
-    print(color_counts)
-    return corret_pos, color_counts
+    Returns:
+        - Number of correct colors in the correct position.
+        - Remaining counts of colors in the real code.
+    """
+    color_counts = {color: real_code.count(color) for color in COLORS}
+    correct_pos = sum(1 for g, r in zip(guess, real_code) if g == r)
+
+    # Reduce counts for correctly guessed positions
+    for g, r in zip(guess, real_code):
+        if g == r:
+            color_counts[g] -= 1
+
+    return correct_pos, color_counts
 
 
-def game():
-    print(f"Walcome to mastemind, you have {TRIES} to guess the code!")
-    code = generate_code()
-    
-    for attempts in range(1,TRIES + 1):
-        guess = guess_code()
-        correct_pos, incorrect_pos = check_code(guess, code)
-        
-        if correct_pos == CODE_LENGTH:
-            print(f"You guessed the code in {attempts} tries!")
-            break
-        print(f"Correct Positions: {correct_pos} | Incorrect Positions: {incorrect_pos}")
-        
-    else:
-        print("You ran out of tries, the code was", *code)
-        
-if __name__ == "__main__":
-    game()
