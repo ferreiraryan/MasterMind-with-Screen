@@ -32,13 +32,26 @@ class mainWindow(QMainWindow, Ui_MainWindow):
             lambda a:self.changeCmbColor(a,self.Guess4)
             )
         
+        
+    def restarGame(self):
+        self._triesLeft = 10
+        self.GameButtom.setText("Start")
+        self.Tries.setText("Clique em Start para começar!")
+        self.GameText.setText(u"Bem-vindo ao mastemind, voc\u00ea tem 10 chances de adivinhar o c\u00f3digo!")
+        self.configGuesses(False)
+        for i in range(4):
+            self.findResult(i).setStyleSheet("background-color: black; border-radius:20px;")
+            
+        
     def changeTries(self):
-        self.Tries.setText(f"{self._triesLeft}Tentativas Restantes")
+        self.Tries.setText(f"{self._triesLeft} Tentativas Restantes")
         self._triesLeft -= 1
         
     def appendColors(self):
         colorsList = [self._color1,self._color2,self._color3,self._color4]
         return colorsList
+    
+        
     
     def findResult(self, i):
         match i:
@@ -55,35 +68,16 @@ class mainWindow(QMainWindow, Ui_MainWindow):
         
         
         
-    def changeresultFrame(self, guess):
-        color_counts = {}
-        for color in self._code:
-            if color not in color_counts:
-                color_counts[color] = 0
-            color_counts[color] += 1
-            
+    def changeresultFrame(self, guess, color_counts):
         for i in range(4):
             if guess[i] == self._code[i]:
-                self.findResult(i).setStyleSheet("background-color: green;")
+                self.findResult(i).setStyleSheet("background-color: green; border-radius:20px;")
             else:
-                self.findResult(i).setStyleSheet("background-color: red;")
-            
+                self.findResult(i).setStyleSheet("background-color: red;  border-radius:20px;")
                 if guess[i] in color_counts and color_counts[guess[i]] > 0:
-                    self.findResult(i).setStyleSheet("background-color: orange;")
+                    self.findResult(i).setStyleSheet("background-color: orange; border-radius:20px;")
                     color_counts[guess[i]] -= 1
 
-
-        # for color in self._code:
-        #     if color not in color_counts:
-        #         color_counts[color] = 0
-        #     color_counts[color] += 1
-
-            
-        # for guess_color, real_color in zip(guess, self._code):
-        #     if guess_color in color_counts and color_counts[guess_color] > 0:
-        #         incorrect_pos += 1
-        #         color_counts[guess_color] -= 1
-                
 
                         
                 
@@ -131,44 +125,63 @@ class mainWindow(QMainWindow, Ui_MainWindow):
 
         Cmb.setStyleSheet(f"background-color: {backColor}; color: {color};")
         
+    def setFinalScreen(self,win):
+        self.GameButtom.setText(u"Recomeçar")
+        if win == True:
+            self.Tries.setText(f"Você acertou em {10-self._triesLeft} tentativas!!")
+        else:
+            self.Tries.setText(f"Você perdeu o jogo!")
+            
         
     def ButtomClick(self):
-        if self.GameButtom.text() == "Start":
-            self._code = generate_code()
-            self.GameText.setText(u"Escolha as cores e aperte o botão Guess.")
-            self.GameButtom.setText(u"Guess")
-            self.configGuesses()
-            self.changeTries()
-            # print(type(self._code))
-            
+        match self.GameButtom.text():
+            case "Recomeçar":
+                self.restarGame()
+            case "Start":
+                self._code = generate_code()
+                self.GameText.setText(u"Escolha as cores e aperte o botão Guess.")
+                self.Tries.setText(f"{self._triesLeft} Tentativas Restantes")
+                self.GameButtom.setText(u"Guess")
+                self.configGuesses(True)
+            case _:
+                if self._triesLeft > 0:
+                    guess = self.appendColors()
+                    correct_pos, color_counts = check_code(guess, self._code)
+                    self.changeresultFrame(guess, color_counts)
+                    self.changeTries()
+                    if correct_pos == CODE_LENGTH:
+                        self.setFinalScreen(True)
+                else:
+                        self.setFinalScreen(False)
+        
+        
+    def configGuesses(self, start):
+        self.Guess1.setEnabled(start)
+        self.Guess2.setEnabled(start)
+        self.Guess3.setEnabled(start)
+        self.Guess4.setEnabled(start)
+        if start:
+            self.Guess1.removeItem(0)
+            self.Guess2.removeItem(0)
+            self.Guess3.removeItem(0)
+            self.Guess4.removeItem(0)
         else:
-            self.changeTries()
-            # print(type(self.appendColors()))
-            guess = self.appendColors()
-            correct_pos, incorrect_pos = check_code(guess, self._code)
-            
-            if correct_pos == CODE_LENGTH:
-                print(f"You guessed the code in {11-TRIES} tries!")
-                self.changeresultFrame(guess)
-            else:
-                self.changeresultFrame(guess)
+            self.Guess1.insertItem(0,u"None")
+            self.Guess2.insertItem(0,u"None")
+            self.Guess3.insertItem(0,u"None")
+            self.Guess4.insertItem(0,u"None")
 
-        
-        
-    def configGuesses(self):
-        self.Guess1.setEnabled(True)
-        self.Guess2.setEnabled(True)
-        self.Guess3.setEnabled(True)
-        self.Guess4.setEnabled(True)
-        
-        self.Guess1.removeItem(0)
-        self.Guess2.removeItem(0)
-        self.Guess3.removeItem(0)
-        self.Guess4.removeItem(0)
-        
-        
-        
-        
+            self.Guess1.setCurrentIndex(0)
+            self.Guess2.setCurrentIndex(0)
+            self.Guess3.setCurrentIndex(0)
+            self.Guess4.setCurrentIndex(0)
+            
+            self.changeCmbColor(8,self.Guess1)
+            self.changeCmbColor(8,self.Guess2)
+            self.changeCmbColor(8,self.Guess3)
+            self.changeCmbColor(8,self.Guess4)
+            
+            
     
 def startwindow():
     app = QApplication()
