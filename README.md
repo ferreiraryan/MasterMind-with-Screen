@@ -1,6 +1,6 @@
-# 📌 Project Name
+# 📌 Mastermind with UI
 
-Brief description of the project. Explain its purpose and what it does in a few lines.
+A version of the mastermind game made using PySide6 for academic purposes.
 
 ## 🚀 Technologies
 
